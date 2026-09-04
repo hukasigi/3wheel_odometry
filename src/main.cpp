@@ -76,8 +76,6 @@ void peer_link_recv_cb(const peer_id_t peer_id, const std::vector<struct Message
         target_pos.x   = target_x;
         target_pos.y   = target_y;
         target_pos.deg = target_deg;
-
-        // ここに目標値を使った制御処理を記述
     }
 }
 

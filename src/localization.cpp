@@ -78,9 +78,9 @@ Position Odometry::get_velocity() const {
 }
 
 void Odometry::_buildInverse() {
-    const double a1 = 135.0 * M_PI / 180.0;
-    const double a2 = 225.0 * M_PI / 180.0;
-    const double a3 = 0.0 * M_PI / 180.0;
+    const double a1 = 45.0 * M_PI / 180.0;
+    const double a2 = 180.0 * M_PI / 180.0;
+    const double a3 = 325 * M_PI / 180.0;
 
     const double c1 = cos(a1), s1 = sin(a1);
     const double c2 = cos(a2), s2 = sin(a2);
