@@ -8,19 +8,19 @@ double wrapPi(double rad) {
     return rad;
 }
 
-Position WheelDeltaToBodyDelta(const double invA[3][3], bool inv_ok, double s1_mm, double s2_mm, double s3_mm) {
+Position_rad WheelDeltaToBodyDelta(const double invA[3][3], bool inv_ok, double s1_mm, double s2_mm, double s3_mm) {
     if (!inv_ok) return {0.0, 0.0, 0.0};
 
     const double s[3] = {s1_mm, s2_mm, s3_mm};
 
-    Position res;
+    Position_rad res;
     res.x   = invA[0][0] * s[0] + invA[0][1] * s[1] + invA[0][2] * s[2];
     res.y   = invA[1][0] * s[0] + invA[1][1] * s[1] + invA[1][2] * s[2];
-    res.deg = invA[2][0] * s[0] + invA[2][1] * s[1] + invA[2][2] * s[2];
+    res.rad = invA[2][0] * s[0] + invA[2][1] * s[1] + invA[2][2] * s[2];
     return res;
 }
 
-Position CountToBody(const double invA[3][3], bool inv_ok, long dc1, long dc2, long dc3) {
+Position_rad CountToBody(const double invA[3][3], bool inv_ok, long dc1, long dc2, long dc3) {
     const double s1 = static_cast<double>(dc1) / COUNTS_PER_MM;
     const double s2 = static_cast<double>(dc2) / COUNTS_PER_MM;
     const double s3 = static_cast<double>(dc3) / COUNTS_PER_MM;
@@ -69,12 +69,19 @@ void Odometry::begin() {
     _buildInverse();
 }
 
-Position Odometry::get_position() const {
+Position_rad Odometry::get_position_rad() const {
     return position_;
 }
+Position_deg Odometry::get_position_deg() const {
+    return {position_.x, position_.y, position_.rad * 180.0 / M_PI};
+}
 
-Position Odometry::get_velocity() const {
+Position_rad Odometry::get_velocity_rad() const {
     return velocity_;
+}
+
+Position_deg Odometry::get_velocity_deg() const {
+    return {velocity_.x, velocity_.y, velocity_.rad * 180.0 / M_PI};
 }
 
 void Odometry::_buildInverse() {
@@ -127,17 +134,17 @@ void Odometry::update(double dt) {
     prev_count2_ = c2;
     prev_count3_ = c3;
 
-    const Position dpos = CountToBody(invA_, inv_ok_, dc1, dc2, dc3);
+    const Position_rad dpos = CountToBody(invA_, inv_ok_, dc1, dc2, dc3);
 
     velocity_.x   = dpos.x / dt;
     velocity_.y   = dpos.y / dt;
-    velocity_.deg = dpos.deg / dt;
+    velocity_.rad = dpos.rad / dt;
 
-    const double th_mid = position_.deg + 0.5 * dpos.deg;
+    const double th_mid = position_.rad + 0.5 * dpos.rad;
     const double ct_mid = cos(th_mid);
     const double st_mid = sin(th_mid);
 
     position_.x += ct_mid * dpos.x - st_mid * dpos.y;
     position_.y += st_mid * dpos.x + ct_mid * dpos.y;
-    position_.deg = wrapPi(position_.deg + dpos.deg);
+    position_.rad = wrapPi(position_.rad + dpos.rad);
 }

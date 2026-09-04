@@ -30,8 +30,9 @@ int16_t target_deg = 0;
 unsigned long  last          = micros();
 const uint16_t CONTROL_CYCLE = 5000;
 
-Position now_pos;
-Position target_pos;
+Position_rad now_pos_rad;
+Position_deg now_pos_deg;
+Position_deg target_pos;
 
 CanDriver can;
 
@@ -43,11 +44,20 @@ PositionPID y_pos_pid(PID_PARAM_Y.p_gain, PID_PARAM_Y.i_gain, PID_PARAM_Y.d_gain
 AnglePID yayPID(PID_PARAM_YAY.p_gain, PID_PARAM_YAY.i_gain, PID_PARAM_YAY.d_gain, -MAX_ANGULAR_SPEED_DEG_S,
                 MAX_ANGULAR_SPEED_DEG_S, YAW_INTEGRAL_MIN, YAW_INTEGRAL_MAX, YAW_RANGE_DEG);
 
-std::vector<uint8_t> positionToPayload(const void* data) {
-    const Position* position = static_cast<const Position*>(data);
+std::vector<uint8_t> positionToPayload(const Position_deg& position) {
+    const int16_t values[3] = {
+        static_cast<int16_t>(position.x),
+        static_cast<int16_t>(position.y),
+        static_cast<int16_t>(position.deg),
+    };
 
-    std::vector<uint8_t> payload(sizeof(Position));
-    std::memcpy(payload.data(), position, sizeof(Position));
+    std::vector<uint8_t> payload(6);
+
+    for (int i = 0; i < 3; ++i) {
+        const uint16_t value = static_cast<uint16_t>(values[i]);
+        payload[i * 2]       = static_cast<uint8_t>(value & 0xFF);
+        payload[i * 2 + 1]   = static_cast<uint8_t>((value >> 8) & 0xFF);
+    }
 
     return payload;
 }
@@ -96,12 +106,12 @@ void loop() {
     last      = now;
     odometry.update(dt);
 
-    now_pos = odometry.get_position();
+    now_pos_deg = odometry.get_position_deg();
 
     if (peer_link_is_peer_exist(TO_PEER_ID)) {
         Message message;
         message.type = POSITION_MESSAGE_TYPE;
-        message.data = positionToPayload(&now_pos);
+        message.data = positionToPayload(now_pos_deg);
 
         std::vector<Message> messages{message};
 
@@ -112,9 +122,9 @@ void loop() {
         }
     }
 
-    int16_t x_vec   = x_pos_pid.update(target_pos.x, now_pos.x, dt);
-    int16_t y_vec   = y_pos_pid.update(target_pos.y, now_pos.y, dt);
-    int16_t deg_vec = yayPID.update(target_pos.deg, now_pos.deg, dt);
+    int16_t x_vec   = x_pos_pid.update(target_pos.x, now_pos_deg.x, dt);
+    int16_t y_vec   = y_pos_pid.update(target_pos.y, now_pos_deg.y, dt);
+    int16_t deg_vec = yayPID.update(target_pos.deg, now_pos_deg.deg, dt);
 
     uint32_t id      = 0x300;
     uint8_t  data[6] = {

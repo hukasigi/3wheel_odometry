@@ -5,13 +5,22 @@
 #include "constants.hpp"
 #include "nnct/interfaces/incremental_encoder.hpp"
 
-struct Position {
+struct Position_rad {
+        double x;
+        double y;
+        double rad;
+
+        Position_rad() : x(0.0), y(0.0), rad(0.0) {}
+        Position_rad(double x_, double y_, double yaw_) : x(x_), y(y_), rad(yaw_) {}
+};
+
+struct Position_deg {
         double x;
         double y;
         double deg;
 
-        Position() : x(0.0), y(0.0), deg(0.0) {}
-        Position(double x_, double y_, double yaw_) : x(x_), y(y_), deg(yaw_) {}
+        Position_deg() : x(0.0), y(0.0), deg(0.0) {}
+        Position_deg(double x_, double y_, double yaw_) : x(x_), y(y_), deg(yaw_) {}
 };
 
 class Odometry {
@@ -19,10 +28,12 @@ class Odometry {
         Odometry(nnct::interfaces::IncrementalEncoder& encoder1, nnct::interfaces::IncrementalEncoder& encoder2,
                  nnct::interfaces::IncrementalEncoder& encoder3);
 
-        void     begin();
-        Position get_position() const;
-        Position get_velocity() const;
-        void     update(double dt);
+        void         begin();
+        Position_rad get_position_rad() const;
+        Position_rad get_velocity_rad() const;
+        Position_deg get_position_deg() const;
+        Position_deg get_velocity_deg() const;
+        void         update(double dt);
 
     private:
         static bool Invert3x3(const double A[3][3], double invA[3][3]);
@@ -40,8 +51,8 @@ class Odometry {
         double last_dc2_{0.0};
         double last_dc3_{0.0};
 
-        Position position_{};
-        Position velocity_{};
+        Position_rad position_{};
+        Position_rad velocity_{};
 
         bool   inv_ok_{false};
         double invA_[3][3]{};
