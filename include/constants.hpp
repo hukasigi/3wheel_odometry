@@ -43,10 +43,10 @@ static constexpr double STEER_GEAR_RATIO_MOTOR_TO_STEER = 65.0 / 27.0;
 static const int32_t CALIBRATING_DUTY = 150;
 
 // 位置制御PIDゲイン
-const struct PidParam PID_PARAM_X = {.p_gain = 4.4, .i_gain = 0.2, .d_gain = 0.0};
-const struct PidParam PID_PARAM_Y = {.p_gain = 4.4, .i_gain = 0.2, .d_gain = 0.0};
+const struct PidParam PID_PARAM_X = {.p_gain = 4., .i_gain = 0.0, .d_gain = 0.0};
+const struct PidParam PID_PARAM_Y = {.p_gain = 4., .i_gain = 0.0, .d_gain = 0.0};
 
-const struct PidParam PID_PARAM_YAY = {.p_gain = 1.2, .i_gain = 0.0, .d_gain = 0.0};
+const struct PidParam PID_PARAM_YAY = {.p_gain = 4., .i_gain = 0.0, .d_gain = 0.0};
 
 // 許容誤差
 constexpr double POSITION_TOLERANCE_MM = 10.0;
@@ -64,8 +64,8 @@ const double DRIVE_MAX_SPEED_MM_S = 1000.0;
 
 // 2) 速度正規化（任意の物理上限に合わせる）
 // 3輪の合計したときの速度、2400mm/sが最大
-const double wheel3_max_speed = 500.0;
+const double wheel3_max_speed = 1000.0;
 
-constexpr double MAX_ANGULAR_SPEED_DEG_S = 3.0;
+constexpr double MAX_ANGULAR_SPEED_DEG_S = 30.0;
 
 constexpr double YAW_RANGE_DEG = 360.;

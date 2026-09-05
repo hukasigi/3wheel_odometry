@@ -90,9 +90,13 @@ void peer_link_recv_cb(const peer_id_t peer_id, const std::vector<struct Message
 }
 
 void setup() {
+    Serial.begin(115200);
     odometry.begin();
     if (!can.begin(1000000, can_tx, can_rx)) {
-        Serial.println("can failed");
+        Serial.println("CAN begin failed");
+        while (true) {
+            delay(1000);
+        }
     }
 
     peer_link_task_init(WIFI_CHANNEL, FROM_PEER_ID);
@@ -135,6 +139,10 @@ void loop() {
         static_cast<uint8_t>((deg_vec >> 8) & 0xFF), static_cast<uint8_t>(deg_vec & 0xFF),
     };
 
-    can.sendStandard(id, data, sizeof(data));
+    const bool sent = can.sendStandard(id, data, sizeof(data));
+
+    Serial.printf("t_x:%.2f t_y:%.2f t_d:%.2f x:%d y:%d deg:%d\r\n", static_cast<double>(target_pos.x),
+                  static_cast<double>(target_pos.y), static_cast<double>(target_pos.deg), x_vec, y_vec, deg_vec);
+
     delay(10);
 }
