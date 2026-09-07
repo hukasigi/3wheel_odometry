@@ -3,6 +3,7 @@
 #include "esp_can.hpp"
 #include "localization.hpp"
 #include "nnct/interfaces/incremental_encoder.hpp"
+#include "trapezoid.h"
 #include <Arduino.h>
 #include <cstdint>
 #include <cstdio>
@@ -29,6 +30,12 @@ int16_t target_deg = 0;
 
 unsigned long  last          = micros();
 const uint16_t CONTROL_CYCLE = 5000;
+
+TrapezoidProfile x_profile(wheel3_max_speed, MAX_SHIFT_ACCELERATION);
+
+TrapezoidProfile y_profile(wheel3_max_speed, MAX_SHIFT_ACCELERATION);
+
+AngleTrapezoidProfile deg_profile(MAX_ANGULAR_SPEED_DEG_S, MAX_ANGULAR_SPEED_DEG_S, 360.0);
 
 Position_rad now_pos_rad;
 Position_deg now_pos_deg;
@@ -126,9 +133,19 @@ void loop() {
         }
     }
 
-    int16_t x_vec   = x_pos_pid.update(target_pos.x, now_pos_deg.x, dt);
-    int16_t y_vec   = y_pos_pid.update(target_pos.y, now_pos_deg.y, dt);
-    int16_t deg_vec = yayPID.update(target_pos.deg, now_pos_deg.deg, dt);
+    // 台形速度プロファイルによる中間目標位置
+    double profile_x = x_profile.update(target_pos.x, dt);
+
+    double profile_y = y_profile.update(target_pos.y, dt);
+
+    double profile_deg = deg_profile.update(target_pos.deg, now_pos_deg.deg, dt);
+
+    // PIDは「現在位置 → 台形プロファイルの目標位置」を追従
+    int16_t x_vec = x_pos_pid.update(profile_x, now_pos_deg.x, dt);
+
+    int16_t y_vec = y_pos_pid.update(profile_y, now_pos_deg.y, dt);
+
+    int16_t deg_vec = yayPID.update(profile_deg, now_pos_deg.deg, dt);
 
     uint32_t id      = 0x300;
     uint8_t  data[6] = {
@@ -143,6 +160,4 @@ void loop() {
 
     Serial.printf("t_x:%.2f t_y:%.2f t_d:%.2f x:%d y:%d deg:%d\r\n", static_cast<double>(target_pos.x),
                   static_cast<double>(target_pos.y), static_cast<double>(target_pos.deg), x_vec, y_vec, deg_vec);
-
-    delay(10);
 }
