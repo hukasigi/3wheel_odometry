@@ -109,6 +109,7 @@ void Odometry::update(double dt) {
         velocity_ = {0.0, 0.0, 0.0};
         return;
     }
+
     if (!inv_ok_) _buildInverse();
     if (!inv_ok_) return;
 
@@ -121,6 +122,7 @@ void Odometry::update(double dt) {
     long dc3 = (c3 - prev_count3_) * ENCODER_SIGN_3;
 
     if (labs(dc1) > 200 || labs(dc2) > 200 || labs(dc3) > 200) {
+
         if (labs(dc1) > 200) dc1 = last_dc1_;
         if (labs(dc2) > 200) dc2 = last_dc2_;
         if (labs(dc3) > 200) dc3 = last_dc3_;
@@ -136,15 +138,28 @@ void Odometry::update(double dt) {
 
     const Position_rad dpos = CountToBody(invA_, inv_ok_, dc1, dc2, dc3);
 
-    velocity_.x   = dpos.x / dt;
-    velocity_.y   = dpos.y / dt;
-    velocity_.rad = dpos.rad / dt;
+    // ロボット座標系での速度
+    const double body_vx   = dpos.x / dt;
+    const double body_vy   = dpos.y / dt;
+    const double angular_v = dpos.rad / dt;
 
+    // 中間角度
     const double th_mid = position_.rad + 0.5 * dpos.rad;
+
     const double ct_mid = cos(th_mid);
     const double st_mid = sin(th_mid);
 
+    // ワールド座標系速度
+    velocity_.x = ct_mid * body_vx - st_mid * body_vy;
+
+    velocity_.y = st_mid * body_vx + ct_mid * body_vy;
+
+    velocity_.rad = angular_v;
+
+    // 位置更新
     position_.x += ct_mid * dpos.x - st_mid * dpos.y;
+
     position_.y += st_mid * dpos.x + ct_mid * dpos.y;
+
     position_.rad = wrapPi(position_.rad + dpos.rad);
 }

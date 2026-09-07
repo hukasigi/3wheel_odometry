@@ -31,25 +31,42 @@ int16_t target_deg = 0;
 unsigned long  last          = micros();
 const uint16_t CONTROL_CYCLE = 5000;
 
-TrapezoidProfile x_profile(wheel3_max_speed, MAX_SHIFT_ACCELERATION);
-
-TrapezoidProfile y_profile(wheel3_max_speed, MAX_SHIFT_ACCELERATION);
-
-AngleTrapezoidProfile deg_profile(MAX_ANGULAR_SPEED_DEG_S, MAX_ANGULAR_SPEED_DEG_S, 360.0);
-
 Position_rad now_pos_rad;
 Position_deg now_pos_deg;
 Position_deg target_pos;
 
+// 現在の目標速度
+double x_ref_speed   = 0.0;
+double y_ref_speed   = 0.0;
+double deg_ref_speed = 0.0;
+
 CanDriver can;
 
-PositionPID x_pos_pid(PID_PARAM_X.p_gain, PID_PARAM_X.i_gain, PID_PARAM_X.d_gain, -wheel3_max_speed, wheel3_max_speed,
-                      POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
-PositionPID y_pos_pid(PID_PARAM_Y.p_gain, PID_PARAM_Y.i_gain, PID_PARAM_Y.d_gain, -wheel3_max_speed, wheel3_max_speed,
-                      POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
+PID x_speed_pid(PID_PARAM_X.p_gain, PID_PARAM_X.i_gain, PID_PARAM_X.d_gain, -SHIFT_MAX_SPEED, SHIFT_MAX_SPEED,
+                POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
+PID y_speed_pid(PID_PARAM_Y.p_gain, PID_PARAM_Y.i_gain, PID_PARAM_Y.d_gain, -SHIFT_MAX_SPEED, SHIFT_MAX_SPEED,
+                POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
 
-AnglePID yayPID(PID_PARAM_YAY.p_gain, PID_PARAM_YAY.i_gain, PID_PARAM_YAY.d_gain, -MAX_ANGULAR_SPEED_DEG_S,
-                MAX_ANGULAR_SPEED_DEG_S, YAW_INTEGRAL_MIN, YAW_INTEGRAL_MAX, YAW_RANGE_DEG);
+PID yayPID(PID_PARAM_YAY.p_gain, PID_PARAM_YAY.i_gain, PID_PARAM_YAY.d_gain, -MAX_ANGULAR_SPEED_DEG_S, MAX_ANGULAR_SPEED_DEG_S,
+           YAW_INTEGRAL_MIN, YAW_INTEGRAL_MAX);
+
+double sign(double value) {
+    if (value > 0.0) return 1.0;
+    if (value < 0.0) return -1.0;
+    return 0.0;
+}
+// 角度を -180 ～ +180 にする
+double wrapAngle(double angle) {
+    while (angle > 180.0) {
+        angle -= 360.0;
+    }
+
+    while (angle < -180.0) {
+        angle += 360.0;
+    }
+
+    return angle;
+}
 
 std::vector<uint8_t> positionToPayload(const Position_deg& position) {
     const int16_t values[3] = {
@@ -133,19 +150,24 @@ void loop() {
         }
     }
 
-    // 台形速度プロファイルによる中間目標位置
-    double profile_x = x_profile.update(target_pos.x, dt);
+    x_ref_speed = updateVelocityProfile(target_pos.x, now_pos_deg.x, x_ref_speed, SHIFT_MAX_SPEED, MAX_SHIFT_ACCELERATION, dt);
 
-    double profile_y = y_profile.update(target_pos.y, dt);
+    y_ref_speed = updateVelocityProfile(target_pos.y, now_pos_deg.y, y_ref_speed, SHIFT_MAX_SPEED, MAX_SHIFT_ACCELERATION, dt);
 
-    double profile_deg = deg_profile.update(target_pos.deg, now_pos_deg.deg, dt);
+    deg_ref_speed = updateAngleVelocityProfile(target_pos.deg, now_pos_deg.deg, deg_ref_speed, MAX_ANGULAR_SPEED_DEG_S,
+                                               MAX_ANGULAR_SPEED_DEG_S, dt);
 
-    // PIDは「現在位置 → 台形プロファイルの目標位置」を追従
-    int16_t x_vec = x_pos_pid.update(profile_x, now_pos_deg.x, dt);
+    Position_deg now_velocity = odometry.get_velocity_deg();
 
-    int16_t y_vec = y_pos_pid.update(profile_y, now_pos_deg.y, dt);
+    double now_speed_x   = now_velocity.x;
+    double now_speed_y   = now_velocity.y;
+    double now_speed_deg = now_velocity.deg;
 
-    int16_t deg_vec = yayPID.update(profile_deg, now_pos_deg.deg, dt);
+    int16_t x_vec = x_speed_pid.update(x_ref_speed, now_speed_x, dt);
+
+    int16_t y_vec = y_speed_pid.update(y_ref_speed, now_speed_y, dt);
+
+    int16_t deg_vec = yayPID.update(deg_ref_speed, now_speed_deg, dt);
 
     uint32_t id      = 0x300;
     uint8_t  data[6] = {

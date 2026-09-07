@@ -3,173 +3,72 @@
 #include <algorithm>
 #include <cmath>
 
-class TrapezoidProfile {
-    public:
-        TrapezoidProfile(double max_velocity, double max_acceleration)
-            : max_velocity_(max_velocity), max_acceleration_(max_acceleration), position_(0.0), velocity_(0.0) {}
+double updateVelocityProfile(double target_pos, double now_pos, double current_speed, double max_speed, double acceleration,
+                             double dt) {
+    const double error = target_pos - now_pos;
 
-        void reset(double position = 0.0) {
-            position_ = position;
-            velocity_ = 0.0;
+    constexpr double POSITION_THRESHOLD = 1.0;
+
+    if (fabs(error) < POSITION_THRESHOLD) {
+        return 0.0;
+    }
+
+    const double direction = sign(error);
+
+    // 現在速度が目標方向と逆なら、まず停止する
+    if (current_speed * direction < 0.0) {
+        double next_speed = current_speed + direction * acceleration * dt;
+
+        // 0を跨がないようにする
+        if (next_speed * current_speed < 0.0) {
+            next_speed = 0.0;
         }
 
-        double update(double target, double dt) {
-            if (dt <= 0.0) {
-                return position_;
-            }
+        return next_speed;
+    }
 
-            const double error = target - position_;
+    // 目標方向に進んでいる場合
+    const double stop_distance = (current_speed * current_speed) / (2.0 * acceleration);
 
-            // ほぼ目標位置なら停止
-            if (std::abs(error) < 1e-6 && std::abs(velocity_) < 1e-6) {
-                position_ = target;
-                velocity_ = 0.0;
-                return position_;
-            }
+    double next_speed = current_speed;
 
-            const double direction = (error > 0.0) ? 1.0 : -1.0;
+    if (fabs(error) > stop_distance) {
+        // 加速
+        next_speed += direction * acceleration * dt;
+    } else {
+        // 減速
+        next_speed -= direction * acceleration * dt;
+    }
 
-            // 現在の速度から停止するまでに必要な距離
-            const double stopping_distance = (velocity_ * velocity_) / (2.0 * max_acceleration_);
+    next_speed = constrain(next_speed, -max_speed, max_speed);
 
-            // 減速を開始するべきか
-            if (std::abs(error) <= stopping_distance) {
-                velocity_ -= direction * max_acceleration_ * dt;
-            } else {
-                velocity_ += direction * max_acceleration_ * dt;
-            }
+    return next_speed;
+}
 
-            // 最大速度制限
-            velocity_ = std::clamp(velocity_, -max_velocity_, max_velocity_);
+double updateAngleVelocityProfile(double target_deg, double now_deg, double current_speed, double max_speed,
+                                  double max_acceleration, double dt) {
+    const double error = wrapAngle(target_deg - now_deg);
 
-            // 目標を通り越さないようにする
-            const double next_position = position_ + velocity_ * dt;
+    constexpr double ANGLE_THRESHOLD = 0.5;
 
-            if ((direction > 0.0 && next_position >= target) || (direction < 0.0 && next_position <= target)) {
+    if (fabs(error) < ANGLE_THRESHOLD) {
+        return 0.0;
+    }
 
-                position_ = target;
-                velocity_ = 0.0;
-            } else {
-                position_ = next_position;
-            }
+    const double stop_angle = (current_speed * current_speed) / (2.0 * max_acceleration);
 
-            return position_;
-        }
+    double next_speed = current_speed;
 
-        double position() const { return position_; }
+    if (fabs(error) > stop_angle) {
 
-        double velocity() const { return velocity_; }
+        next_speed += sign(error) * max_acceleration * dt;
 
-    private:
-        double max_velocity_;
-        double max_acceleration_;
+    } else {
 
-        double position_;
-        double velocity_;
-};
+        next_speed -= sign(current_speed) * max_acceleration * dt;
+    }
 
-class AngleTrapezoidProfile {
-    public:
-        AngleTrapezoidProfile(double max_velocity, double max_acceleration, double range = 360.0)
-            : max_velocity_(max_velocity), max_acceleration_(max_acceleration), range_(range), position_(0.0), velocity_(0.0),
-              initialized_(false) {}
+    next_speed = constrain(next_speed, -max_speed, max_speed);
 
-        void reset(double position = 0.0) {
-            position_    = position;
-            velocity_    = 0.0;
-            initialized_ = true;
-        }
-
-        double update(double target, double current, double dt) {
-            if (dt <= 0.0) {
-                return position_;
-            }
-
-            // 初回だけ現在角度をプロファイルの位置にする
-            if (!initialized_) {
-                position_    = current;
-                velocity_    = 0.0;
-                initialized_ = true;
-            }
-
-            // -------------------------
-            // 最短方向の角度誤差
-            // -------------------------
-            double error = target - position_;
-
-            error = std::fmod(error + range_ / 2.0, range_);
-
-            if (error < 0.0) {
-                error += range_;
-            }
-
-            error -= range_ / 2.0;
-
-            // -------------------------
-            // ほぼ到着
-            // -------------------------
-            if (std::abs(error) < 0.01 && std::abs(velocity_) < 0.01) {
-
-                position_ = target;
-                velocity_ = 0.0;
-
-                return position_;
-            }
-
-            // -------------------------
-            // 進行方向
-            // -------------------------
-            const double direction = (error >= 0.0) ? 1.0 : -1.0;
-
-            // -------------------------
-            // 停止するために必要な距離
-            // v² = 2ad
-            // -------------------------
-            const double stopping_distance = (velocity_ * velocity_) / (2.0 * max_acceleration_);
-
-            // -------------------------
-            // 加速 / 減速
-            // -------------------------
-            if (std::abs(error) <= stopping_distance) {
-
-                // 減速
-                velocity_ -= direction * max_acceleration_ * dt;
-
-            } else {
-
-                // 加速
-                velocity_ += direction * max_acceleration_ * dt;
-            }
-
-            // 最大速度
-            velocity_ = std::clamp(velocity_, -max_velocity_, max_velocity_);
-
-            // -------------------------
-            // 位置更新
-            // -------------------------
-            position_ += velocity_ * dt;
-
-            // 位置を 0～360 に収める
-            position_ = std::fmod(position_, range_);
-
-            if (position_ < 0.0) {
-                position_ += range_;
-            }
-
-            return position_;
-        }
-
-        double position() const { return position_; }
-
-        double velocity() const { return velocity_; }
-
-    private:
-        double max_velocity_;
-        double max_acceleration_;
-        double range_;
-
-        double position_;
-        double velocity_;
-
-        bool initialized_;
-};
+    return next_speed;
+}

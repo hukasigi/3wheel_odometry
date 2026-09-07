@@ -61,7 +61,7 @@ constexpr double YAW_INTEGRAL_MIN      = -300.0;
 const double SPEED_EPS = 1e-3; // 1 mm/s 程度のノイズは角度更新を行わない
 // 2) 速度正規化（任意の物理上限に合わせる）
 // 3輪の合計したときの速度、2400mm/sが最大
-const double wheel3_max_speed = 2400.0;
+const double SHIFT_MAX_SPEED = 2400.0;
 
 constexpr double MAX_ANGULAR_SPEED_DEG_S = 30.0;
 
