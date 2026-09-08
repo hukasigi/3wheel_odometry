@@ -3,13 +3,34 @@
 #include <algorithm>
 #include <cmath>
 
+double sign(double value) {
+    if (value > 0.0) return 1.0;
+    if (value < 0.0) return -1.0;
+    return 0.0;
+}
+// 角度を -180 ～ +180 にする
+double wrapAngle(double angle) {
+    while (angle > 180.0) {
+        angle -= 360.0;
+    }
+
+    while (angle < -180.0) {
+        angle += 360.0;
+    }
+
+    return angle;
+}
+
 double updateVelocityProfile(double target_pos, double now_pos, double current_speed, double max_speed, double acceleration,
                              double dt) {
-    const double error = target_pos - now_pos;
+    const double error    = target_pos - now_pos;
+    const double distance = std::fabs(error);
 
-    constexpr double POSITION_THRESHOLD = 1.0;
+    constexpr double POSITION_THRESHOLD = 3.0;
+    constexpr double SPEED_THRESHOLD    = 2.0;
 
-    if (fabs(error) < POSITION_THRESHOLD) {
+    // 位置・速度ともに十分小さい場合だけ停止
+    if (distance < POSITION_THRESHOLD && std::fabs(current_speed) < SPEED_THRESHOLD) {
         return 0.0;
     }
 
@@ -47,11 +68,13 @@ double updateVelocityProfile(double target_pos, double now_pos, double current_s
 
 double updateAngleVelocityProfile(double target_deg, double now_deg, double current_speed, double max_speed,
                                   double max_acceleration, double dt) {
-    const double error = wrapAngle(target_deg - now_deg);
+    const double error    = wrapAngle(target_deg - now_deg);
+    const double distance = std::fabs(error);
 
     constexpr double ANGLE_THRESHOLD = 0.5;
+    constexpr double SPEED_THRESHOLD = 0.5;
 
-    if (fabs(error) < ANGLE_THRESHOLD) {
+    if (distance < ANGLE_THRESHOLD && std::fabs(current_speed) < SPEED_THRESHOLD) {
         return 0.0;
     }
 
