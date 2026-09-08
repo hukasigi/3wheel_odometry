@@ -3,6 +3,7 @@
 #include "esp_can.hpp"
 #include "localization.hpp"
 #include "nnct/interfaces/incremental_encoder.hpp"
+#include "trapezoid.h"
 #include <Arduino.h>
 #include <cstdint>
 #include <cstdio>
@@ -34,15 +35,20 @@ Position_rad now_pos_rad;
 Position_deg now_pos_deg;
 Position_deg target_pos;
 
+// 現在の目標速度
+double x_ref_speed   = 0.0;
+double y_ref_speed   = 0.0;
+double deg_ref_speed = 0.0;
+
 CanDriver can;
 
-PositionPID x_pos_pid(PID_PARAM_X.p_gain, PID_PARAM_X.i_gain, PID_PARAM_X.d_gain, -wheel3_max_speed, wheel3_max_speed,
-                      POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
-PositionPID y_pos_pid(PID_PARAM_Y.p_gain, PID_PARAM_Y.i_gain, PID_PARAM_Y.d_gain, -wheel3_max_speed, wheel3_max_speed,
-                      POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
+PID x_speed_pid(PID_PARAM_X.p_gain, PID_PARAM_X.i_gain, PID_PARAM_X.d_gain, -SHIFT_MAX_SPEED, SHIFT_MAX_SPEED,
+                POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
+PID y_speed_pid(PID_PARAM_Y.p_gain, PID_PARAM_Y.i_gain, PID_PARAM_Y.d_gain, -SHIFT_MAX_SPEED, SHIFT_MAX_SPEED,
+                POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
 
-AnglePID yayPID(PID_PARAM_YAY.p_gain, PID_PARAM_YAY.i_gain, PID_PARAM_YAY.d_gain, -MAX_ANGULAR_SPEED_DEG_S,
-                MAX_ANGULAR_SPEED_DEG_S, YAW_INTEGRAL_MIN, YAW_INTEGRAL_MAX, YAW_RANGE_DEG);
+PID deg_speed_pid(PID_PARAM_YAW.p_gain, PID_PARAM_YAW.i_gain, PID_PARAM_YAW.d_gain, -MAX_ANGULAR_SPEED_DEG_S,
+                  MAX_ANGULAR_SPEED_DEG_S, YAW_INTEGRAL_MIN, YAW_INTEGRAL_MAX);
 
 std::vector<uint8_t> positionToPayload(const Position_deg& position) {
     const int16_t values[3] = {
@@ -126,9 +132,30 @@ void loop() {
         }
     }
 
-    int16_t x_vec   = x_pos_pid.update(target_pos.x, now_pos_deg.x, dt);
-    int16_t y_vec   = y_pos_pid.update(target_pos.y, now_pos_deg.y, dt);
-    int16_t deg_vec = yayPID.update(target_pos.deg, now_pos_deg.deg, dt);
+    x_ref_speed = updateVelocityProfile(target_pos.x, now_pos_deg.x, x_ref_speed, SHIFT_MAX_SPEED, MAX_SHIFT_ACCELERATION, dt);
+
+    y_ref_speed = updateVelocityProfile(target_pos.y, now_pos_deg.y, y_ref_speed, SHIFT_MAX_SPEED, MAX_SHIFT_ACCELERATION, dt);
+
+    deg_ref_speed = updateAngleVelocityProfile(target_pos.deg, now_pos_deg.deg, deg_ref_speed, MAX_ANGULAR_SPEED_DEG_S,
+                                               MAX_ROTATE_ACCELERATION, dt);
+
+    Position_deg now_velocity = odometry.get_velocity_deg();
+
+    double now_speed_x   = (double)now_velocity.x;
+    double now_speed_y   = (double)now_velocity.y;
+    double now_speed_deg = (double)now_velocity.deg;
+
+    // int16_t x_vec = x_speed_pid.update(x_ref_speed, now_speed_x, dt);
+
+    // int16_t y_vec = y_speed_pid.update(y_ref_speed, now_speed_y, dt);
+
+    // int16_t deg_vec = deg_speed_pid.update(deg_ref_speed, now_speed_deg, dt);
+
+    int16_t x_vec = x_ref_speed;
+
+    int16_t y_vec = y_ref_speed;
+
+    int16_t deg_vec = deg_ref_speed;
 
     uint32_t id      = 0x300;
     uint8_t  data[6] = {
@@ -141,8 +168,6 @@ void loop() {
 
     const bool sent = can.sendStandard(id, data, sizeof(data));
 
-    Serial.printf("t_x:%.2f t_y:%.2f t_d:%.2f x:%d y:%d deg:%d\r\n", static_cast<double>(target_pos.x),
-                  static_cast<double>(target_pos.y), static_cast<double>(target_pos.deg), x_vec, y_vec, deg_vec);
-
-    delay(10);
+    // Serial.printf("t_x:%.2f t_y:%.2f t_d:%.2f x:%d y:%d deg:%d\r\n", static_cast<double>(target_pos.x),
+    //               static_cast<double>(target_pos.y), static_cast<double>(target_pos.deg), x_vec, y_vec, deg_vec);
 }
