@@ -71,8 +71,8 @@ double updateAngleVelocityProfile(double target_deg, double now_deg, double curr
     const double error    = wrapAngle(target_deg - now_deg);
     const double distance = std::fabs(error);
 
-    constexpr double ANGLE_THRESHOLD = 0.5;
-    constexpr double SPEED_THRESHOLD = 0.5;
+    constexpr double ANGLE_THRESHOLD = 1.;
+    constexpr double SPEED_THRESHOLD = 5.;
 
     if (distance < ANGLE_THRESHOLD && std::fabs(current_speed) < SPEED_THRESHOLD) {
         return 0.0;

@@ -43,10 +43,10 @@ static constexpr double STEER_GEAR_RATIO_MOTOR_TO_STEER = 65.0 / 27.0;
 static const int32_t CALIBRATING_DUTY = 150;
 
 // 位置制御PIDゲイン
-const struct PidParam PID_PARAM_X = {.p_gain = 0.5, .i_gain = 0.0, .d_gain = 0.0};
-const struct PidParam PID_PARAM_Y = {.p_gain = 0.5, .i_gain = 0.0, .d_gain = 0.0};
+const struct PidParam PID_PARAM_X = {.p_gain = 1.0, .i_gain = 0.0, .d_gain = 0.0};
+const struct PidParam PID_PARAM_Y = {.p_gain = 1.0, .i_gain = 0.0, .d_gain = 0.0};
 
-const struct PidParam PID_PARAM_YAY = {.p_gain = 0.5, .i_gain = 0.0, .d_gain = 0.0};
+const struct PidParam PID_PARAM_YAW = {.p_gain = 1., .i_gain = 0.0, .d_gain = 0.0};
 
 // 許容誤差
 constexpr double POSITION_TOLERANCE_MM = 10.0;
@@ -67,5 +67,5 @@ constexpr double MAX_ANGULAR_SPEED_DEG_S = 30.0;
 
 constexpr double YAW_RANGE_DEG = 360.;
 
-constexpr double MAX_SHIFT_ACCELERATION  = 500.;
+constexpr double MAX_SHIFT_ACCELERATION  = 1000.;
 constexpr double MAX_ROTATE_ACCELERATION = 300.;

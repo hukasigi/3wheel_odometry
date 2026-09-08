@@ -47,7 +47,7 @@ PID x_speed_pid(PID_PARAM_X.p_gain, PID_PARAM_X.i_gain, PID_PARAM_X.d_gain, -SHI
 PID y_speed_pid(PID_PARAM_Y.p_gain, PID_PARAM_Y.i_gain, PID_PARAM_Y.d_gain, -SHIFT_MAX_SPEED, SHIFT_MAX_SPEED,
                 POSITION_INTEGRAL_MIN, POSITION_INTEGRAL_MAX);
 
-PID deg_speed_pid(PID_PARAM_YAY.p_gain, PID_PARAM_YAY.i_gain, PID_PARAM_YAY.d_gain, -MAX_ANGULAR_SPEED_DEG_S,
+PID deg_speed_pid(PID_PARAM_YAW.p_gain, PID_PARAM_YAW.i_gain, PID_PARAM_YAW.d_gain, -MAX_ANGULAR_SPEED_DEG_S,
                   MAX_ANGULAR_SPEED_DEG_S, YAW_INTEGRAL_MIN, YAW_INTEGRAL_MAX);
 
 std::vector<uint8_t> positionToPayload(const Position_deg& position) {
@@ -145,11 +145,17 @@ void loop() {
     double now_speed_y   = (double)now_velocity.y;
     double now_speed_deg = (double)now_velocity.deg;
 
-    int16_t x_vec = x_speed_pid.update(x_ref_speed, now_speed_x, dt);
+    // int16_t x_vec = x_speed_pid.update(x_ref_speed, now_speed_x, dt);
 
-    int16_t y_vec = y_speed_pid.update(y_ref_speed, now_speed_y, dt);
+    // int16_t y_vec = y_speed_pid.update(y_ref_speed, now_speed_y, dt);
 
-    int16_t deg_vec = deg_speed_pid.update(deg_ref_speed, now_speed_deg, dt);
+    // int16_t deg_vec = deg_speed_pid.update(deg_ref_speed, now_speed_deg, dt);
+
+    int16_t x_vec = x_ref_speed;
+
+    int16_t y_vec = y_ref_speed;
+
+    int16_t deg_vec = deg_ref_speed;
 
     uint32_t id      = 0x300;
     uint8_t  data[6] = {
